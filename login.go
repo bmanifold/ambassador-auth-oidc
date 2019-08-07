@@ -28,6 +28,9 @@ var nonceChars = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ012
 
 var loginSessions []*loginSession
 
+var secureCookieFlag bool = true
+var httpOnlyCookieFlag bool = false
+
 func init() {
 	hostname = strings.Split(parseEnvURL("SELF_URL").Host, ":")[0] // Because Host still has a port if it was in URL
 
@@ -76,6 +79,16 @@ func init() {
 
 	// 64 char(512 bit) key is needed for HS512
 	hmacSecret = initialiseHMACSecretFromEnv("JWT_HMAC_SECRET", 64)
+
+	envContent := os.Getenv("DISABLE_SECURE_COOKIE")
+	if envContent == "true" {
+		secureCookieFlag = false
+	}
+
+	envContent = os.Getenv("ENABLE_HTTP_ONLY_COOKIE")
+	if envContent == "true" {
+		httpOnlyCookieFlag = true
+	}
 }
 
 type loginSession struct {
@@ -209,11 +222,13 @@ func beginOIDCLogin(w http.ResponseWriter, r *http.Request, origURL string) {
 func createCookie(sessionJwt string, expiration time.Time, domain string) *http.Cookie {
 
 	cookie := &http.Cookie{
-		Name:    "auth",
-		Value:   sessionJwt,
-		Path:    "/",
-		Domain:  domain,
-		Expires: expiration,
+		Name:     "auth",
+		Value:    sessionJwt,
+		Path:     "/",
+		Domain:   domain,
+		Expires:  expiration,
+		Secure:   secureCookieFlag,
+		HttpOnly: httpOnlyCookieFlag,
 	}
 
 	return cookie
